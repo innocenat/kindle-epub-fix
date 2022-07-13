@@ -1,6 +1,8 @@
 const filePicker = document.getElementById('file')
-const encoding = '<?xml version="1.0" encoding="utf-8"?>'
-const tl = encoding.length
+const encoding1 = '<?xml version="1.0" encoding="utf-8"?>'
+const encoding2 = '<?xml version="1.0" encoding="utf-8" ?>'
+const tl1 = encoding1.length
+const tl2 = encoding2.length
 
 let to_dl = null, to_dl_fname = null
 
@@ -27,8 +29,8 @@ async function processEPUB (blob, name) {
       if (ext === 'xhtml') {
         let html = await entry.getData(new zip.TextWriter('utf-8'))
         html = html.trimStart()
-        if (html.substring(0, tl).toLowerCase() !== encoding) {
-          html = encoding + '\n' + html
+        if (html.substring(0, tl1).toLowerCase() !== encoding1 && html.substring(0, tl2).toLowerCase() !== encoding2) {
+          html = encoding1 + '\n' + html
           has_error = true
         }
         await writer.add(entry.filename, new zip.TextReader(html))
