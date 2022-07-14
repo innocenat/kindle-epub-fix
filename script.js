@@ -1,8 +1,6 @@
 const filePicker = document.getElementById('file')
-const encoding1 = '<?xml version="1.0" encoding="utf-8"?>'
-const encoding2 = '<?xml version="1.0" encoding="utf-8" ?>'
-const tl1 = encoding1.length
-const tl2 = encoding2.length
+const encoding = '<?xml version="1.0" encoding="utf-8"?>'
+const regex = /^<\?xml\s+version="[\d.]+"\s+encoding="[a-zA-Z\d-.]+"\s?\?>/i
 
 let to_dl = null, to_dl_fname = null
 
@@ -12,6 +10,7 @@ filePicker.addEventListener('change', (e) => {
   document.getElementById('sys-error').style.display = 'none'
   document.getElementById('has-error').style.display = 'none'
   document.getElementById('no-error').style.display = 'none'
+  document.getElementById('processing').style.display = 'block'
 
   processEPUB(selectedFile, selectedFile.name)
 })
@@ -29,8 +28,8 @@ async function processEPUB (blob, name) {
       if (ext === 'xhtml') {
         let html = await entry.getData(new zip.TextWriter('utf-8'))
         html = html.trimStart()
-        if (html.substring(0, tl1).toLowerCase() !== encoding1 && html.substring(0, tl2).toLowerCase() !== encoding2) {
-          html = encoding1 + '\n' + html
+        if (!regex.test(html)) {
+          html = encoding + '\n' + html
           has_error = true
         }
         await writer.add(entry.filename, new zip.TextReader(html))
@@ -55,6 +54,7 @@ async function processEPUB (blob, name) {
     console.error(e)
     document.getElementById('sys-error').style.display = 'block'
   }
+  document.getElementById('processing').style.display = 'none'
 }
 
 document.getElementById('btn').addEventListener('click', () => {
