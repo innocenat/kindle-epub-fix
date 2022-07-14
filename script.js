@@ -1,6 +1,6 @@
 const filePicker = document.getElementById('file')
 const encoding = '<?xml version="1.0" encoding="utf-8"?>'
-const regex = /^<\?xml\s+version="[\d.]+"\s+encoding="[a-zA-Z\d-.]+"\s?\?>/i
+const regex = /^<\?xml\s+version="[\d.]+"\s+encoding="[a-zA-Z\d-.]+"\s*\?>/i
 
 let to_dl = null, to_dl_fname = null
 
