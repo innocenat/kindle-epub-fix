@@ -12,44 +12,46 @@
 <p>
     Amazon Send-to-Kindle service has accepted EPUB, however, for historical reason
     it still assumes ISO-8859-1 encoding if no encoding is specified. This creates weird formatting errors for special
-    characters.
+    characters. It is also pretty strict when it comes to EPUB format validation.
 </p>
 <p>
-    This tool will try to fix your EPUB by adding the UTF-8 specification to your EPUB. It currently does
-    not fix other errors.
+    This tool will try to fix your EPUB to be able to use with Send to Kindle. It currently tries to fix these problems:
 </p>
+<ul>
+    <li>Fix UTF-8 encoding problem by adding UTF-8 declaration if no encoding is specified</li>
+    <li>Fix hyperlink problem (result in Amazon rejecting the EPUB) when NCX table of content link to &lt;body&gt; with ID hash.</li>
+</ul>
 <p>
     <b>Privacy:</b> The book is processed locally in your browser. We do not upload your file anywhere.
 </p>
 <p>
     <b>Warning: </b> This tool come at no warranty. Please still keep your original EPUB.
-    We don't guarantee the resulting file will be valid EPUB file, but it should.
+    We do not guarantee that the resulting file will be valid EPUB file, but it should.
 </p>
 
 <h2>Select your EPUB</h2>
 <form>
     <input id="file" type="file" accept=".epub">
 </form>
-<div id="processing" style="display:none;color:blue">
+
+<div id="status" style="display:none;color:blue;margin:1em 0">
     Processing...
 </div>
-<div id="sys-error" style="display:none;color:red">
-    The system encountered an error. Perhaps you are not selecting EPUB
-    file?
-</div>
-<div id="no-error" style="display:none;color:blue">
-    No missing encoding detected. Perhaps there are other errors.
-</div>
-<div id="has-error" style="display:none;color:green">
-    Encoding fixed.<br>
-    <button id="btn">Download the fixed file.</button>
-</div>
 
-<hr>
+<button id="btn" style="display:none;margin:1em 0">Download output file.</button>
+
+<hr style="margin:1em 0">
 
 <h2>Version History</h2>
 
 <ul>
+    <li>
+        <strong>1.1 - August 24, 2022</strong><br>
+        Restructure the code to be able to handle other error types.<br>
+        Fix cannot detect existing encoding declaration if the declaration is using single quote.<br>
+        Add new fix for invalid hyperlink to body tag with ID.<br>
+        Also show the list of what has been fixed.
+    </li>
     <li>
         <strong>1.0.1 - August 14, 2022</strong><br>
         Fix CRC problem in generated EPUB file caused by ZIP library.
@@ -60,7 +62,7 @@
     </li>
 </ul>
 
-<small>Source code is available on <a href="https://github.com/innocenat/kindle-epub-fix" rel="noopener" target="_blank">GitHub.</a></small>
+<p>Source code is available on <a href="https://github.com/innocenat/kindle-epub-fix" rel="noopener" target="_blank">GitHub.</a></p>
 
 <script src="script.js"></script>
 </body>
