@@ -157,6 +157,7 @@ async function processEPUB (blob, name) {
       filename =  "(fixed) " + filename
       setStatus(epub.fixedProblems)
     } else {
+      filename =  "(repacked) " + filename
       setStatus(TXT_NO_ERROR)
     }
   } catch (e) {
