@@ -21,7 +21,7 @@ function setStatus(type) {
       statusDiv.innerHTML = type
       statusDiv.style.color = 'red'
     } else {
-      statusDiv.innerHTML = `<ul>${type.map(x => `<li>${x}</li>`).join('')}</ul>`
+      statusDiv.innerHTML = `<ul class="scroll">${type.map(x => `<li>${x}</li>`).join('')}</ul>`
       statusDiv.style.color = 'green'
       downloadBtn.style.display = 'block'
     }
@@ -154,6 +154,7 @@ async function processEPUB (blob, name) {
     filename = name
 
     if (epub.fixedProblems.length > 0) {
+      filename =  "(fixed) " + filename
       setStatus(epub.fixedProblems)
     } else {
       setStatus(TXT_NO_ERROR)
