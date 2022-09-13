@@ -33,6 +33,10 @@ function basename(path) {
   return path.split('/').pop()
 }
 
+function simplify_language(lang) {
+  return lang.split('-').shift()
+}
+
 class EPUBBook {
   fixedProblems = []
 
@@ -80,6 +84,100 @@ class EPUBBook {
         if (this.files[filename].includes(src)) {
           this.files[filename] = this.files[filename].replaceAll(src, target)
           this.fixedProblems.push(`Replaced link target ${src} with ${target} in file ${filename}.`)
+        }
+      }
+    }
+  }
+
+  // Fix language field not defined or not available
+  fixBookLanguage() {
+    const parser = new DOMParser()
+
+    // From https://kdp.amazon.com/en_US/help/topic/G200673300
+    // Retrieved: 2022-Sep-13
+    const allowed_languages = [
+      // ISO 639-1
+      'af', 'gsw', 'ar', 'eu', 'nb', 'br', 'ca', 'zh', 'kw', 'co', 'da', 'nl', 'stq', 'en', 'fi', 'fr', 'fy', 'gl',
+      'de', 'gu', 'hi', 'is', 'ga', 'it', 'ja', 'lb', 'mr', 'ml', 'gv', 'frr', 'nb', 'nn', 'pl', 'pt', 'oc', 'rm',
+      'sco', 'gd', 'es', 'sv', 'ta', 'cy',
+
+      // ISO 639-2
+      'afr', 'ara', 'eus', 'baq', 'nob', 'bre', 'cat', 'zho', 'chi', 'cor', 'cos', 'dan', 'nld', 'dut', 'eng', 'fin',
+      'fra', 'fre', 'fry', 'glg', 'deu', 'ger', 'guj', 'hin', 'isl', 'ice', 'gle', 'ita', 'jpn', 'ltz', 'mar', 'mal',
+      'glv', 'nor', 'nno', 'por', 'oci', 'roh', 'gla', 'spa', 'swe', 'tam', 'cym', 'wel',
+    ]
+
+    // Find OPF file
+    if (!('META-INF/container.xml' in this.files)) {
+      console.error('Cannot find META-INF/container.xml')
+      return
+    }
+    const meta_inf_str = this.files['META-INF/container.xml']
+    const meta_inf = parser.parseFromString(meta_inf_str, 'text/xml')
+    let opf_filename = ''
+    for (const rootfile of meta_inf.getElementsByTagName('rootfile')) {
+      if (rootfile.getAttribute('media-type') === 'application/oebps-package+xml') {
+        opf_filename = rootfile.getAttribute('full-path')
+      }
+    }
+
+    // Read OPF file
+    if (!(opf_filename in this.files)) {
+      console.error('Cannot find OPF file!')
+      return
+    }
+
+    const opf_str = this.files[opf_filename]
+    try {
+      const opf = parser.parseFromString(opf_str, 'text/xml')
+      const language_tags = opf.getElementsByTagName('dc:language')
+      let language = 'en'
+      let original_language = 'undefined'
+      if (language_tags.length === 0) {
+        language = prompt('E-book does not have language tag. Please specify the language of the book in RFC 5646 format, e.g. en, fr, ja.', 'en') || 'en'
+      } else {
+        language = language_tags[0].innerHTML
+        original_language = language
+      }
+      if (!allowed_languages.includes(simplify_language(language))) {
+        language = prompt(`Language ${language} is not supported by Kindle. Documents may fail to convert. Continue or specify new language of the book in RFC 5646 format, e.g. en, fr, ja.`, language) || language
+      }
+      if (language_tags.length === 0) {
+        const language_tag = opf.createElement('dc:language')
+        language_tag.innerHTML = language
+        opf.getElementsByTagName('metadata')[0].appendChild(language_tag)
+      } else {
+        language_tags[0].innerHTML = language
+      }
+      if (language !== original_language) {
+        this.files[opf_filename] = new XMLSerializer().serializeToString(opf)
+        this.fixedProblems.push(`Change document language from ${original_language} to ${language}.`)
+      }
+    } catch (e) {
+      console.error(e)
+      console.error('Error trying to parse OPF file as XML.')
+    }
+  }
+
+  fixStrayIMG() {
+    const parser = new DOMParser()
+
+    for (const filename in this.files) {
+      const ext = filename.split('.').pop()
+      if (ext === 'html' || ext === 'xhtml') {
+        let html = parser.parseFromString(this.files[filename], ext === 'xhtml' ? 'application/xhtml+xml' : 'text/html')
+        let strayImg = []
+        for (const img of html.getElementsByTagName('img')) {
+          if (!img.getAttribute('src')) {
+            strayImg.push(img)
+          }
+        }
+        if (strayImg.length > 0) {
+          for (const img of strayImg) {
+            img.parentElement.removeChild(img)
+          }
+          this.fixedProblems.push(`Remove stray image tag(s) in ${filename}`)
+          this.files[filename] = new XMLSerializer().serializeToString(html)
         }
       }
     }
@@ -149,8 +247,10 @@ async function processEPUB (blob, name) {
     await epub.readEPUB(blob)
 
     // Run fixing procedure
-    epub.fixEncoding()
     epub.fixBodyIdLink()
+    epub.fixBookLanguage()
+    epub.fixStrayIMG()
+    epub.fixEncoding()
 
     // Write EPUB
     fixedBlob = await epub.writeEPUB()
