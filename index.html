@@ -32,6 +32,8 @@
         <li>Fix UTF-8 encoding problem by adding UTF-8 declaration if no encoding is specified</li>
         <li>Fix hyperlink problem (result in Amazon rejecting the EPUB) when NCX table of content link to &lt;body&gt;
             with ID hash.</li>
+        <li>Detect invalid and/or missing language tag in metadata, and prompt user to select new language.</li>
+        <li>Remove stray &lt;img&gt; tags with no source field.</li>
     </ul>
     <p>
         <b>Privacy:</b> The book is processed locally in your browser. We do not upload your file anywhere.
@@ -58,9 +60,16 @@
 
     <ul>
         <li>
+            <strong>1.2 - September 13, 2022</strong><br>
+            Detect invalid language tag and prompt user for new language.<br>
+            Detect stray image tags and remove them.<br>
+            Fix bug in body ID tag replacement.
+        </li>
+        <li>
             <strong>1.1.1 - September 10, 2022</strong><br>
             User experience improvements.<br>
-            Add prefix to filenames of EPUBs that were fixed.<br>
+            Add prefix to filenames of EPUBs that were fixed.
+        </li>
         <li>
             <strong>1.1 - August 24, 2022</strong><br>
             Restructure the code to be able to handle other error types.<br>
