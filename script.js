@@ -4,6 +4,7 @@ const TXT_SYS_ERROR = 'The program encountered an internal error.'
 
 const statusDiv = document.getElementById('status')
 const downloadBtn = document.getElementById('btn')
+
 function setStatus(type) {
   if (type === '') {
     statusDiv.style.display = 'none'
@@ -66,8 +67,10 @@ class EPUBBook {
         let html = this.files[filename]
         const dom = parser.parseFromString(html, 'text/html')
         const bodyID = dom.getElementsByTagName('body')[0].id
-        const linkTarget = basename(filename) + '#' + bodyID
-        bodyIDList.push([linkTarget, basename(filename)])
+        if (bodyID.length > 0) {
+          const linkTarget = basename(filename) + '#' + bodyID
+          bodyIDList.push([linkTarget, basename(filename)])
+        }
       }
     }
 
@@ -112,7 +115,7 @@ class EPUBBook {
     // Add text file
     for (const file in this.files) {
       if (file === 'mimetype') {
-        // We have already add mimetype file
+        // We have already added mimetype file
         continue
       }
       await writer.add(file, new zip.TextReader(this.files[file]))
