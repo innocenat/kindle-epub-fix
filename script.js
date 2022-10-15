@@ -257,10 +257,10 @@ async function processEPUB (blob, name) {
     filename = name
 
     if (epub.fixedProblems.length > 0) {
-      filename =   filename + "(f) "
+      filename =   filename + "(f).epub "
       setStatus(epub.fixedProblems)
     } else {
-      filename =  filename + "(r) "
+      filename =  filename + "(r).epub "
       setStatus(TXT_NO_ERROR)
     }
   } catch (e) {
