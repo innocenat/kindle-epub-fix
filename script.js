@@ -43,7 +43,7 @@ class EPUBBook {
   // Add UTF-8 encoding declaration if missing
   fixEncoding() {
     const encoding = '<?xml version="1.0" encoding="utf-8"?>'
-    const regex = /^<\?xml\s+version=["'][\d.]+["']\s+encoding=["'][a-zA-Z\d-.]+["'].*\?>/i
+    const regex = /^<\?xml\s+version=["'][\d.]+["']\s+encoding=["'][a-zA-Z\d-.]+["'].*?\?>/i
 
     for (const filename in this.files) {
       const ext = filename.split('.').pop()
