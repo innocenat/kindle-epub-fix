@@ -1,30 +1,65 @@
 const TXT_PROCESSING = 'Processing...'
+const TXT_DONE = 'Finished processing all files.'
 const TXT_NO_ERROR = 'No errors detected. Perhaps there are other errors?<br>Output file is available for download anyway.'
 const TXT_SYS_ERROR = 'The program encountered an internal error.'
 
-const statusDiv = document.getElementById('status')
-const downloadBtn = document.getElementById('btn')
+const mainStatusDiv = document.getElementById('main_status')
+const outputDiv = document.getElementById('output')
+const btnDlAll = document.getElementById('btnDlAll')
 
-function setStatus(type) {
-  if (type === '') {
-    statusDiv.style.display = 'none'
-    downloadBtn.style.display = 'none'
+const filePicker = document.getElementById('file')
+
+let filenames = [], fixedBlobs = [], dlfilenames = []
+
+function build_output_html(idx, status) {
+  const statusDiv = document.createElement('div')
+  const dlBtn = document.createElement('button')
+  statusDiv.style.margin = '1em 0'
+  dlBtn.style.margin = '1em 0'
+  dlBtn.innerHTML = 'Download'
+  dlBtn.addEventListener('click', () => {
+    saveAs(fixedBlobs[idx], dlfilenames[idx])
+  })
+
+  let btn = false
+
+  if (status === TXT_NO_ERROR) {
+    statusDiv.innerHTML = status
+    statusDiv.style.color = 'blue'
+    btn = true
+  } else if (status === TXT_SYS_ERROR) {
+    statusDiv.innerHTML = status
+    statusDiv.style.color = 'red'
+    btn = false
   } else {
-    statusDiv.style.display = 'block'
+    statusDiv.innerHTML = `<ul class="scroll">${status.map(x => `<li>${x}</li>`).join('')}</ul>`
+    statusDiv.style.color = 'green'
+    btn = 'block'
+  }
+
+  const section = document.createElement('section')
+  section.style.margin = '2em 0'
+  section.innerHTML = `<h3>${filenames[idx]}</h3>`
+  section.appendChild(statusDiv)
+  if (btn) {
+    section.appendChild(dlBtn)
+  }
+
+  return section
+}
+
+function setMainStatus(type) {
+  if (type === '') {
+    mainStatusDiv.style.display = 'none'
+    mainStatusDiv.style.display = 'none'
+  } else {
+    mainStatusDiv.style.display = 'block'
     if (type === TXT_PROCESSING) {
-      statusDiv.innerHTML = type
-      statusDiv.style.color = 'blue'
-    } else if (type === TXT_NO_ERROR) {
-      statusDiv.innerHTML = type
-      statusDiv.style.color = 'blue'
-      downloadBtn.style.display = 'block'
-    } else if (type === TXT_SYS_ERROR) {
-      statusDiv.innerHTML = type
-      statusDiv.style.color = 'red'
-    } else {
-      statusDiv.innerHTML = `<ul class="scroll">${type.map(x => `<li>${x}</li>`).join('')}</ul>`
-      statusDiv.style.color = 'green'
-      downloadBtn.style.display = 'block'
+      mainStatusDiv.innerHTML = type
+      mainStatusDiv.style.color = 'blue'
+    } else if (type === TXT_DONE) {
+      mainStatusDiv.innerHTML = type
+      mainStatusDiv.style.color = 'blue'
     }
   }
 }
@@ -230,21 +265,27 @@ class EPUBBook {
   }
 }
 
-let fixedBlob = null, filename = null
-const filePicker = document.getElementById('file')
-
-filePicker.addEventListener('change', (e) => {
+filePicker.addEventListener('change', async (e) => {
   const selectedFile = e.target.files[0]
-  setStatus(TXT_PROCESSING)
+  setMainStatus(TXT_PROCESSING)
+  outputDiv.innerHTML = ''
+  btnDlAll.style.display = 'none'
 
-  processEPUB(selectedFile, selectedFile.name)
+  for (const file of e.target.files) {
+    await processEPUB(file, file.name)
+  }
+  setMainStatus(TXT_DONE)
+
+  if (e.target.files.length > 1) {
+    btnDlAll.style.display = 'block'
+  }
 })
 
-async function processEPUB (blob, name) {
+async function processEPUB (inputBlob, name) {
   try {
     // Load EPUB
     const epub = new EPUBBook()
-    await epub.readEPUB(blob)
+    await epub.readEPUB(inputBlob)
 
     // Run fixing procedure
     epub.fixBodyIdLink()
@@ -253,25 +294,45 @@ async function processEPUB (blob, name) {
     epub.fixEncoding()
 
     // Write EPUB
-    fixedBlob = await epub.writeEPUB()
-    filename = name
+    const blob = await epub.writeEPUB()
+    const idx = filenames.length
+    filenames.push(name)
+    fixedBlobs.push(blob)
 
     if (epub.fixedProblems.length > 0) {
-      filename =  "(fixed) " + filename
-      setStatus(epub.fixedProblems)
+      dlfilenames.push("(fixed) " + name)
+      outputDiv.appendChild(build_output_html(idx, epub.fixedProblems))
     } else {
-      filename =  "(repacked) " + filename
-      setStatus(TXT_NO_ERROR)
+      dlfilenames.push("(repacked) " + name)
+      outputDiv.appendChild(build_output_html(idx, TXT_NO_ERROR))
     }
   } catch (e) {
     console.error(e)
-    setStatus(TXT_SYS_ERROR)
+    const idx = filenames.length
+    filenames.push(name)
+    while (fixedBlobs.length !== filenames.length) {
+      fixedBlobs.push(null)
+    }
+    while (dlfilenames.length !== dlfilenames.length) {
+      fixedBlobs.push(null)
+    }
+    outputDiv.appendChild(build_output_html(idx, TXT_SYS_ERROR))
   }
 }
 
-document.getElementById('btn').addEventListener('click', () => {
-  if (fixedBlob) {
-    saveAs(fixedBlob, filename)
+async function downloadAll() {
+  const old = mainStatusDiv.innerHTML
+  mainStatusDiv.innerHTML = 'Preparing download...'
+  const blobWriter = new zip.BlobWriter('application/zip')
+  const writer = new zip.ZipWriter(blobWriter, { extendedTimestamp: false })
+  for (let i = 0; i < fixedBlobs.length; i++) {
+    if (fixedBlobs[i])
+      await writer.add(dlfilenames[i], new zip.BlobReader(fixedBlobs[i]))
   }
-})
+  await writer.close()
+  const blob = blobWriter.getData()
+  saveAs(blob, 'fixed-epubs.zip')
+  mainStatusDiv.innerHTML = old
+}
 
+btnDlAll.addEventListener('click', downloadAll)

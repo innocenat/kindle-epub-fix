@@ -11,7 +11,7 @@
         ul.scroll {
             max-height: 10rem;
             overflow: auto;
-            text-align: justify;
+            word-break: break-word;
         }
     </style>
 </head>
@@ -45,14 +45,17 @@
 
     <h2>Select your EPUB</h2>
     <form>
-        <input id="file" type="file" accept=".epub">
+        <input id="file" type="file" accept=".epub" multiple>
+        <small>Multiple files allowed.</small>
     </form>
 
-    <div id="status" style="display:none;color:blue;margin:1em 0">
+    <div id="main_status" style="display:none;color:blue;margin:1em 0">
         Processing...
     </div>
 
-    <button id="btn" style="display:none;margin:1em 0">Download output file.</button>
+    <button id="btnDlAll" style="display:none;margin:1em 0">Download all as zip</button>
+
+    <div id="output"></div>
 
     <hr style="margin:1em 0">
 
