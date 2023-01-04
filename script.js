@@ -34,7 +34,7 @@ function basename(path) {
 }
 
 function simplify_language(lang) {
-  return lang.split('-').shift()
+  return lang.split('-').shift().toLowerCase()
 }
 
 class EPUBBook {
