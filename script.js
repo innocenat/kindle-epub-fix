@@ -313,8 +313,8 @@ async function processEPUB (inputBlob, name) {
     while (fixedBlobs.length !== filenames.length) {
       fixedBlobs.push(null)
     }
-    while (dlfilenames.length !== dlfilenames.length) {
-      fixedBlobs.push(null)
+    while (dlfilenames.length !== filenames.length) {
+      dlfilenames.push(null)
     }
     outputDiv.appendChild(build_output_html(idx, TXT_SYS_ERROR))
   }
