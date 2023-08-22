@@ -6,6 +6,7 @@ const TXT_SYS_ERROR = 'The program encountered an internal error.'
 const mainStatusDiv = document.getElementById('main_status')
 const outputDiv = document.getElementById('output')
 const btnDlAll = document.getElementById('btnDlAll')
+const keepOriginalFilename = document.getElementById('keepOriginalFilename')
 
 const filePicker = document.getElementById('file')
 
@@ -300,10 +301,10 @@ async function processEPUB (inputBlob, name) {
     fixedBlobs.push(blob)
 
     if (epub.fixedProblems.length > 0) {
-      dlfilenames.push("(fixed) " + name)
+      keepOriginalFilename.checked ? dlfilenames.push(name) : dlfilenames.push("(fixed) " + name)
       outputDiv.appendChild(build_output_html(idx, epub.fixedProblems))
     } else {
-      dlfilenames.push("(repacked) " + name)
+      keepOriginalFilename.checked ? dlfilenames.push(name) : dlfilenames.push("(repacked) " + name)
       outputDiv.appendChild(build_output_html(idx, TXT_NO_ERROR))
     }
   } catch (e) {
