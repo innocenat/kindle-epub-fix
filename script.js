@@ -218,6 +218,185 @@ class EPUBBook {
       }
     }
   }
+  
+    // Fix OPF spine order to match ncx chapter order
+	fixChapterFileOrder() {
+		const parser = new DOMParser()
+
+		// Find OPF file
+		if (!('META-INF/container.xml' in this.files)) {
+			console.error('Cannot find META-INF/container.xml')
+			return
+		}
+		const meta_inf_str = this.files['META-INF/container.xml']
+		const meta_inf = parser.parseFromString(meta_inf_str, 'text/xml')
+		let opf_filename = ''
+		for (const rootfile of meta_inf.getElementsByTagName('rootfile')) {
+			if (rootfile.getAttribute('media-type') === 'application/oebps-package+xml') {
+				opf_filename = rootfile.getAttribute('full-path')
+			}
+		}
+
+		// Read OPF file
+		if (!(opf_filename in this.files)) {
+			console.error('Cannot find OPF file!')
+			return
+		}
+
+		function getDirName(file_name) {
+			let dir = file_name.substr(0, file_name.lastIndexOf('/'))
+			if (dir === '')
+				return ''
+			else
+				return dir + '/'
+		}
+
+		const opf_str = this.files[opf_filename]
+		const opf_dir = getDirName(opf_filename)
+
+		try {
+			const opf = parser.parseFromString(opf_str, 'text/xml')
+
+			const manifest_tags = opf.getElementsByTagName('manifest')
+			const spine_tags = opf.getElementsByTagName('spine')
+
+			let ncx_filename = ''
+			const manifest_map = new Map()
+			const spine_map = new Map()
+			let spine_nodes
+
+			if (manifest_tags.length === 0) {
+				console.error('OPF manifest has no items!')
+				return
+			} else if (spine_tags.length === 0) {
+				console.error('OPF spine has no items!')
+				return
+			} else {
+				let manifest_nodes = manifest_tags[0].children
+
+				for (let i = 0; i < manifest_nodes.length; i++) {
+
+					if (manifest_nodes[i].getAttribute('media-type') === 'application/x-dtbncx+xml') {
+						ncx_filename = opf_dir + manifest_nodes[i].getAttribute('href')
+						if (!(opf_filename in this.files)) {
+							console.error('Cannot find NCX file!')
+							return
+						}
+					}
+
+					manifest_map.set(manifest_nodes[i].getAttribute('id'), opf_dir + manifest_nodes[i].getAttribute('href'))
+				}
+
+				spine_nodes = spine_tags[0].children
+
+				for (let i = 0; i < spine_nodes.length; i++) {
+
+					let idref = spine_nodes[i].getAttribute('idref')
+					let id_file = manifest_map.get(idref)
+					let spine_item_html = spine_nodes[i].outerHTML
+					spine_map.set(id_file, spine_item_html)
+				}
+			}
+
+			const ncx_str = this.files[ncx_filename]
+			const ncx = parser.parseFromString(ncx_str, 'text/xml')
+			const navmap_tags = ncx.getElementsByTagName('navMap')
+
+			let navpoint_file_position_map = new Map()
+
+			function getContentTag(node) {
+
+				for (let i = 0; i < node.children.length; i++) {
+
+					if (node.children[i].nodeName === 'content') {
+						return node.children[i]
+					}
+				}
+				return ''
+			}
+
+			let navpoint_tags = navmap_tags[0].getElementsByTagName('navPoint')
+
+			const ncx_dir = getDirName(opf_filename)
+
+			for (let i = 0; i < navpoint_tags.length; i++) {
+				let playOrder = parseInt(navpoint_tags[i].getAttribute('playOrder'))
+
+				let content_tag = getContentTag(navpoint_tags[i], 'content')
+
+				if (content_tag === '')
+					continue
+
+				let source = content_tag.getAttribute('src')
+
+				let fragment = source.indexOf('#')
+				if (fragment > 0) {
+					source = source.substr(0, fragment)
+				}
+
+				source = ncx_dir + source
+
+				let map_values = [...navpoint_file_position_map.values()];
+				if (!map_values.includes(source)) {
+					navpoint_file_position_map.set(playOrder, source)
+				}
+			}
+
+			// Sort navpoints by playOrder
+			navpoint_file_position_map = new Map([...navpoint_file_position_map.entries()].sort(function(a, b) {
+				return a[0] - b[0];
+			}))
+
+			// Reorder OPF spine so that all itemrefs appearing in NCX are in the same order
+			// as the NCX's navPoint playOrder. Order is preserved for items in the spine
+			// that are not in the NCX
+			function rebuildOpfSpineToMatchNcx(originalOpfSpineFileList, ncxFilesList) {
+				let newOpfSpine = []
+				let waiting = []
+
+				originalOpfSpineFileList.reverse()
+
+				while (originalOpfSpineFileList.length > 0) {
+					let next_itemref = originalOpfSpineFileList.pop()
+
+					if (ncxFilesList.length == 0 || !ncxFilesList.includes(next_itemref[0])) {
+						newOpfSpine.push(next_itemref)
+					} else if (ncxFilesList[0] == next_itemref[0]) {
+						newOpfSpine.push(next_itemref)
+						ncxFilesList.shift()
+
+						while (waiting.length > 0)
+							originalOpfSpineFileList.push(waiting.pop())
+					} else {
+						waiting.push(next_itemref);
+					}
+				}
+				return newOpfSpine;
+			}
+
+			let new_opf_spine = rebuildOpfSpineToMatchNcx([...spine_map.entries()], [...navpoint_file_position_map.values()])
+
+			if (new_opf_spine.length != spine_nodes.length) {
+				console.error('Rebuilt OPF spine\'s size differs from the original!')
+				return
+			}
+
+			let fixed_spine_order = false
+			for (let i = 0; i < spine_nodes.length; i++) {
+				fixed_spine_order = fixed_spine_order | !(spine_nodes[i].outerHTML === new_opf_spine[i][1])
+				spine_nodes[i].outerHTML = new_opf_spine[i][1]
+			}
+
+			if (fixed_spine_order) {
+				this.files[opf_filename] = new XMLSerializer().serializeToString(opf)
+				this.fixedProblems.push(`Changed OPF spine order to match NCX navPoint order.`)
+			}
+
+		} catch (e) {
+			console.error(e)
+			console.error('Error trying to parse OPF file as XML.')
+		}
+	}
 
   async readEPUB(blob) {
     const reader = new zip.ZipReader(new zip.BlobReader(blob))
@@ -293,6 +472,7 @@ async function processEPUB (inputBlob, name) {
     epub.fixBookLanguage()
     epub.fixStrayIMG()
     epub.fixEncoding()
+		epub.fixChapterFileOrder()
 
     // Write EPUB
     const blob = await epub.writeEPUB()
